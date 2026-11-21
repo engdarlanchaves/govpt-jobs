@@ -38,6 +38,30 @@ jobs:
           fi
           echo "Secrets OK. URL prefixo: ${SUPABASE_URL:0:28}..."
 
+      - name: Sincronizar scripts do repo fonte (conta A)
+        env:
+          SOURCE_TOKEN: ${{ secrets.GOVPT_SOURCE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SOURCE_TOKEN:-}" ]; then
+            echo "GOVPT_SOURCE_TOKEN em falta — a usar scripts/ ja no repo (se existirem)."
+            ls -la scripts || true
+            exit 0
+          fi
+          mkdir -p scripts
+          REF="${SOURCE_REF:-restore-21d98db}"
+          for f in atualizar_concursos.py ext_oportunidades_fontes.py export_concursos_abertos.py; do
+            echo "A descarregar scripts/$f (ref=$REF)..."
+            curl -fsSL \
+              -H "Authorization: Bearer $SOURCE_TOKEN" \
+              -H "Accept: application/vnd.github.raw+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/Darlanchavess/Gov.pt/contents/scripts/$f?ref=$REF" \
+              -o "scripts/$f"
+            test -s "scripts/$f"
+            echo "  OK $(wc -c < scripts/$f) bytes"
+          done
+
       - name: Pipeline principal (anuncios + PDFs)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
